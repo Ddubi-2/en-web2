@@ -595,20 +595,90 @@ body {
 }
 .sec-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
 
+/* ── BOTTOM NAV (mobile only, hidden on desktop) ── */
+.bottom-nav { display: none; }
+
 /* ── RESPONSIVE ── */
-@media (max-width: 540px) {
-  .nav { gap: 2px; padding: 8px 10px; }
-  .nav-btn { font-size: 11px; padding: 6px 12px; }
+@media (max-width: 640px) {
+  /* Hide top nav, show bottom tab bar */
+  .nav { display: none; }
+  .content {
+    padding: 16px 14px calc(68px + env(safe-area-inset-bottom));
+    /* no offset needed — header is sticky, nav is hidden */
+  }
+
+  /* Bottom tab bar */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #FFFFFF;
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bn-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 0 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bn-btn.active { color: var(--brand); }
+  .bn-icon { font-size: 22px; line-height: 1; }
+
+  /* Filter rows: horizontal scroll, no wrap */
+  .filter-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-btn { flex-shrink: 0; }
+
+  /* bm-filter-row: stack vertically on mobile */
+  .bm-filter-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .bm-filter-row .filter-row { flex: none; }
+  .bm-toggle { align-self: flex-start; }
+
+  /* Hero */
+  .home-hero { padding: 22px 18px 20px; }
   .hero-en { font-size: 20px; }
+
+  /* Stats */
   .stats-row { gap: 6px; }
   .stat-num { font-size: 20px; }
-  .home-nav-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Cards */
+  .expr-card, .sent-card { padding: 14px 14px; }
+
+  /* Quiz */
   .quiz-prompt { font-size: 15px; }
+  .opt-btn { padding: 14px 14px; font-size: 13px; }
   .result-score { font-size: 56px; }
+
+  /* Section header */
+  .sec-title { font-size: 18px; }
 }
-@media (max-width: 360px) {
-  .nav-btn { font-size: 10px; padding: 5px 8px; }
+
+@media (max-width: 380px) {
   .home-nav-grid { grid-template-columns: 1fr; }
+  .hero-en { font-size: 18px; }
 }
 </style>
 </head>
@@ -692,6 +762,22 @@ body {
   </section>
 
 </main>
+
+<!-- BOTTOM TAB BAR (mobile) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bn-btn active" data-sec="home"      onclick="showSection('home')">
+    <span class="bn-icon">🏠</span><span>홈</span>
+  </button>
+  <button class="bn-btn"        data-sec="phrases"   onclick="showSection('phrases')">
+    <span class="bn-icon">💬</span><span>표현</span>
+  </button>
+  <button class="bn-btn"        data-sec="sentences" onclick="showSection('sentences')">
+    <span class="bn-icon">📝</span><span>예문</span>
+  </button>
+  <button class="bn-btn"        data-sec="quiz"      onclick="showSection('quiz')">
+    <span class="bn-icon">🎯</span><span>퀴즈</span>
+  </button>
+</nav>
 
 <script>
 /* ═══════════════════════════════════════════════
@@ -1026,7 +1112,8 @@ function showSection(id) {
   SECS.forEach(s => {
     document.getElementById('sec-'+s).classList.toggle('active', s===id);
   });
-  document.querySelectorAll('.nav-btn').forEach(b => {
+  // Update both top nav and bottom tab bar
+  document.querySelectorAll('.nav-btn, .bn-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.sec===id);
   });
   currentSec = id;
