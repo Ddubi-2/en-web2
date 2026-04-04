@@ -584,6 +584,27 @@ body {
 }
 .replay-btn:hover { background: var(--brand-hover); }
 
+/* ── BOOKMARKS EMPTY STATE ── */
+.bm-empty {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text3);
+}
+.bm-empty-icon  { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.bm-empty-title { font-size: 15px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
+.bm-empty-desc  { font-size: 13px; line-height: 1.6; }
+
+/* ── BOOKMARK SECTION TABS ── */
+.bm-sec-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.bm-sec-tab {
+  font-size: 12px; font-weight: 600; padding: 6px 16px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text3);
+  cursor: pointer; transition: all 0.15s;
+}
+.bm-sec-tab:hover  { color: var(--text1); border-color: var(--border2); }
+.bm-sec-tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
 /* ── SECTION HEADER ── */
 .sec-header { margin-bottom: 18px; }
 .sec-title {
@@ -623,21 +644,21 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 9px 0 10px;
+    gap: 2px;
+    padding: 8px 0 10px;
     background: none;
     border: none;
     cursor: pointer;
     color: var(--text3);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
     transition: color 0.15s;
     -webkit-tap-highlight-color: transparent;
   }
   .bn-btn.active { color: var(--brand); }
-  .bn-icon { font-size: 22px; line-height: 1; }
+  .bn-icon { font-size: 20px; line-height: 1; }
 
   /* Filter rows: horizontal scroll, no wrap */
   .filter-row {
@@ -700,6 +721,7 @@ body {
   <button class="nav-btn"        data-sec="phrases"   onclick="showSection('phrases')">💬 표현/숙어</button>
   <button class="nav-btn"        data-sec="sentences" onclick="showSection('sentences')">📝 예문</button>
   <button class="nav-btn"        data-sec="quiz"      onclick="showSection('quiz')">🎯 퀴즈</button>
+  <button class="nav-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">★ 즐겨찾기</button>
 </nav>
 
 <main class="content">
@@ -761,6 +783,21 @@ body {
     </div>
   </section>
 
+  <!-- BOOKMARKS -->
+  <section id="sec-bookmarks" class="section">
+    <div class="sec-header">
+      <div class="sec-title">즐겨찾기</div>
+      <div class="sec-desc">저장해 둔 표현과 예문을 한곳에서 확인하세요.</div>
+    </div>
+    <div class="bm-sec-tabs">
+      <button class="bm-sec-tab active" data-tab="all"      onclick="setBmTab('all')">전체</button>
+      <button class="bm-sec-tab"        data-tab="phrases"  onclick="setBmTab('phrases')">표현/숙어</button>
+      <button class="bm-sec-tab"        data-tab="sentences" onclick="setBmTab('sentences')">예문</button>
+    </div>
+    <div class="count-label" id="bm-count"></div>
+    <div id="bm-list"></div>
+  </section>
+
 </main>
 
 <!-- BOTTOM TAB BAR (mobile) -->
@@ -776,6 +813,9 @@ body {
   </button>
   <button class="bn-btn"        data-sec="quiz"      onclick="showSection('quiz')">
     <span class="bn-icon">🎯</span><span>퀴즈</span>
+  </button>
+  <button class="bn-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">
+    <span class="bn-icon">★</span><span>저장</span>
   </button>
 </nav>
 
@@ -1224,11 +1264,18 @@ tips: [
 /* ═══════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════ */
+// sentence bookmarks (existing key kept for backwards-compat)
 let bookmarks = new Set();
 try { bookmarks = new Set(JSON.parse(localStorage.getItem('eng_bookmarks') || '[]')); } catch(e){}
-
 function saveBm() {
   try { localStorage.setItem('eng_bookmarks', JSON.stringify([...bookmarks])); } catch(e){}
+}
+
+// phrase bookmarks (new)
+let phraseBm = new Set();
+try { phraseBm = new Set(JSON.parse(localStorage.getItem('eng_pbm') || '[]')); } catch(e){}
+function savePhraseBm() {
+  try { localStorage.setItem('eng_pbm', JSON.stringify([...phraseBm])); } catch(e){}
 }
 
 function getBestScore() {
@@ -1264,22 +1311,38 @@ function shuffle(arr) {
 /* ═══════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════ */
-const SECS = ['home','phrases','sentences','quiz'];
+const SECS = ['home','phrases','sentences','quiz','bookmarks'];
 let currentSec = 'home';
+let shuffledPhrases   = [];
+let shuffledSentences = [];
 
 function showSection(id) {
   SECS.forEach(s => {
     document.getElementById('sec-'+s).classList.toggle('active', s===id);
   });
-  // Update both top nav and bottom tab bar
   document.querySelectorAll('.nav-btn, .bn-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.sec===id);
   });
   currentSec = id;
-  if (id==='home')      renderHome();
-  if (id==='phrases')   renderPhrases();
-  if (id==='sentences') renderSentences();
-  if (id==='quiz' && quizState.phase==='idle') renderQuizStart();
+  if (id==='home') {
+    renderHome();
+  }
+  if (id==='phrases') {
+    shuffledPhrases = shuffle(DATA.phrases);   // 진입할 때마다 순서 랜덤
+    renderPhrases();
+  }
+  if (id==='sentences') {
+    shuffledSentences = shuffle(DATA.sentences); // 진입할 때마다 순서 랜덤
+    renderSentences();
+  }
+  if (id==='quiz') {
+    // 진행 중이든 아니든 항상 시작 화면으로 리셋
+    quizState.phase = 'idle';
+    renderQuizStart();
+  }
+  if (id==='bookmarks') {
+    renderBookmarks();
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -1357,20 +1420,31 @@ function setPhraseFilter(cat) {
   renderPhrases();
 }
 
+function togglePhraseBookmark(id) {
+  if (phraseBm.has(id)) phraseBm.delete(id); else phraseBm.add(id);
+  savePhraseBm();
+  renderPhrases();
+}
+
 function renderPhrases() {
   const query = (document.getElementById('phrase-search')?.value || '').toLowerCase().trim();
-  let items = currentPhraseCat==='all' ? DATA.phrases : DATA.phrases.filter(p=>p.cat===currentPhraseCat);
+  const src   = shuffledPhrases.length ? shuffledPhrases : DATA.phrases;
+  let items   = currentPhraseCat==='all' ? src : src.filter(p=>p.cat===currentPhraseCat);
   if (query) {
     items = items.filter(p => p.en.toLowerCase().includes(query) || p.ko.includes(query));
   }
   document.getElementById('phrase-count').textContent = `총 ${items.length}개 표현`;
   document.getElementById('phrase-list').innerHTML = items.map(p => {
     const badgeCls = catBadgeClass(p.cat);
+    const isBm = phraseBm.has(p.id);
     return `
       <div class="expr-card">
         <div class="expr-top">
           <div class="expr-en">${esc(p.en)}</div>
-          <span class="cat-badge ${badgeCls}">${CAT_LABEL[p.cat]||p.cat}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <span class="cat-badge ${badgeCls}">${CAT_LABEL[p.cat]||p.cat}</span>
+            <button class="bm-btn${isBm?' starred':''}" onclick="togglePhraseBookmark(${p.id})" title="즐겨찾기">${isBm?'★':'☆'}</button>
+          </div>
         </div>
         <div class="expr-ko">${esc(p.ko)}</div>
         <div class="expr-example">
@@ -1409,7 +1483,8 @@ function toggleBookmark(id) {
 }
 
 function renderSentences() {
-  let items = currentSentCat==='all' ? DATA.sentences : DATA.sentences.filter(s=>s.cat===currentSentCat);
+  const src  = shuffledSentences.length ? shuffledSentences : DATA.sentences;
+  let items  = currentSentCat==='all' ? src : src.filter(s=>s.cat===currentSentCat);
   if (bmFilterOn) items = items.filter(s=>bookmarks.has(s.id));
   document.getElementById('sent-count').textContent = `총 ${items.length}개 예문${bmFilterOn?' (즐겨찾기)':''}`;
   document.getElementById('sent-list').innerHTML = items.map(s => {
@@ -1426,6 +1501,98 @@ function renderSentences() {
         </div>
       </div>`;
   }).join('') || '<div style="text-align:center;padding:30px;color:var(--text3)">' + (bmFilterOn ? '즐겨찾기한 예문이 없어요 ☆' : '표시할 예문이 없어요') + '</div>';
+}
+
+/* ═══════════════════════════════════════════════
+   BOOKMARKS
+═══════════════════════════════════════════════ */
+let currentBmTab = 'all';
+
+function setBmTab(tab) {
+  currentBmTab = tab;
+  document.querySelectorAll('.bm-sec-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab===tab);
+  });
+  renderBookmarks();
+}
+
+function renderBookmarks() {
+  const bmPhrases   = DATA.phrases.filter(p => phraseBm.has(p.id));
+  const bmSentences = DATA.sentences.filter(s => bookmarks.has(s.id));
+
+  let totalCount = 0;
+  let html = '';
+
+  if (currentBmTab !== 'sentences' && bmPhrases.length > 0) {
+    totalCount += bmPhrases.length;
+    if (currentBmTab === 'all') html += `<div class="count-label" style="margin-bottom:6px;font-weight:600;color:var(--text2)">표현/숙어 ${bmPhrases.length}개</div>`;
+    html += bmPhrases.map(p => {
+      const badgeCls = catBadgeClass(p.cat);
+      return `
+        <div class="expr-card">
+          <div class="expr-top">
+            <div class="expr-en">${esc(p.en)}</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+              <span class="cat-badge ${badgeCls}">${CAT_LABEL[p.cat]||p.cat}</span>
+              <button class="bm-btn starred" onclick="removePhraseFromBm(${p.id})" title="저장 해제">★</button>
+            </div>
+          </div>
+          <div class="expr-ko">${esc(p.ko)}</div>
+          <div class="expr-example">
+            <div class="ex-en">${esc(p.ex_en)}</div>
+            <div class="ex-ko">${esc(p.ex_ko)}</div>
+          </div>
+          ${p.nuance ? `<div class="nuance-badge">${esc(p.nuance)}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  if (currentBmTab !== 'phrases' && bmSentences.length > 0) {
+    totalCount += bmSentences.length;
+    if (currentBmTab === 'all' && bmPhrases.length > 0) html += `<div class="count-label" style="margin:14px 0 6px;font-weight:600;color:var(--text2)">예문 ${bmSentences.length}개</div>`;
+    else if (currentBmTab === 'all') html += `<div class="count-label" style="margin-bottom:6px;font-weight:600;color:var(--text2)">예문 ${bmSentences.length}개</div>`;
+    html += bmSentences.map(s => {
+      return `
+        <div class="sent-card">
+          <div class="sent-top">
+            <div>
+              <div class="sent-en">${esc(s.en)}</div>
+              <div class="sent-ko">${esc(s.ko)}</div>
+              ${s.note ? `<span class="sent-note">${esc(s.note)}</span>` : ''}
+            </div>
+            <button class="bm-btn starred" onclick="removeSentFromBm(${s.id})" title="저장 해제">★</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  if (currentBmTab !== 'sentences') totalCount += (currentBmTab==='all' ? 0 : bmPhrases.length); // already counted
+  const total = currentBmTab==='all' ? bmPhrases.length + bmSentences.length
+              : currentBmTab==='phrases' ? bmPhrases.length : bmSentences.length;
+
+  document.getElementById('bm-count').textContent = `총 ${total}개 저장됨`;
+
+  if (total === 0) {
+    html = `
+      <div class="bm-empty">
+        <div class="bm-empty-icon">☆</div>
+        <div class="bm-empty-title">저장된 항목이 없어요</div>
+        <div class="bm-empty-desc">표현이나 예문 카드의 ☆ 버튼을 눌러<br>즐겨찾기에 저장해 보세요.</div>
+      </div>`;
+  }
+  document.getElementById('bm-list').innerHTML = html;
+}
+
+function removePhraseFromBm(id) {
+  phraseBm.delete(id);
+  savePhraseBm();
+  renderBookmarks();
+}
+
+function removeSentFromBm(id) {
+  bookmarks.delete(id);
+  saveBm();
+  renderBookmarks();
 }
 
 /* ═══════════════════════════════════════════════
