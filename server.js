@@ -12,6 +12,10 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 app.use(express.json());
 app.use(express.static(__dirname));
 
+app.get('/', (req, res) => {
+  res.sendFile(join(__dirname, 'english-study.html'));
+});
+
 // data.json에서 DATA를 읽어 context 문자열로 변환
 function buildContext() {
   let DATA;
