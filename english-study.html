@@ -410,16 +410,16 @@ body {
 .sent-en  { font-size: 14px; font-weight: 700; color: var(--text1); line-height: 1.55; letter-spacing: -0.1px; }
 .sent-ko  { font-size: 13px; color: var(--text2); line-height: 1.6; margin-top: 4px; }
 .sent-note {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--surface2);
-  color: var(--text3);
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #F7F7F7;
+  color: var(--text2);
   margin-top: 8px;
-  letter-spacing: 0.02em;
-  border: 1px solid var(--border);
+  line-height: 1.6;
+  border-left: 3px solid var(--border2);
 }
 .bm-btn {
   background: none;
@@ -875,7 +875,6 @@ body {
   <button class="nav-btn"        data-sec="sentences" onclick="showSection('sentences')">📝 예문</button>
   <button class="nav-btn"        data-sec="quiz"      onclick="showSection('quiz')">🎯 퀴즈</button>
   <button class="nav-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">★ 즐겨찾기</button>
-  <button class="nav-btn"        data-sec="ai"        onclick="showSection('ai')">🤖 AI 도우미</button>
   <button class="nav-btn"        data-sec="flashcard" onclick="showSection('flashcard')">📇 플래시카드</button>
 </nav>
 
@@ -938,31 +937,6 @@ body {
     </div>
   </section>
 
-  <!-- AI ASSISTANT -->
-  <section id="sec-ai" class="section">
-    <div class="sec-header">
-      <div class="sec-title">AI 도우미</div>
-      <div class="sec-desc">표현 사용법, 뉘앙스, 비슷한 표현 등 무엇이든 물어보세요.</div>
-    </div>
-    <div class="ai-chat-wrap">
-      <div class="ai-messages" id="ai-messages">
-        <div class="ai-msg ai-msg--bot">
-          <div class="ai-msg-bubble">
-            안녕하세요! 영어 표현에 대해 궁금한 것이 있으면 물어보세요 😊<br><br>
-            예시 질문:<br>
-            · "No worries랑 It's okay 차이가 뭐야?"<br>
-            · "비즈니스 이메일에서 쓸 수 있는 표현 알려줘"<br>
-            · "ghosted가 정확히 무슨 뜻이야?"
-          </div>
-        </div>
-      </div>
-      <div class="ai-input-row">
-        <input class="ai-input" id="ai-input" type="text" placeholder="질문을 입력하세요..." onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendAiMessage(); }">
-        <button class="ai-send-btn" id="ai-send-btn" onclick="sendAiMessage()">전송</button>
-      </div>
-    </div>
-  </section>
-
   <!-- BOOKMARKS -->
   <section id="sec-bookmarks" class="section">
     <div class="sec-header">
@@ -1005,9 +979,6 @@ body {
   </button>
   <button class="bn-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">
     <span class="bn-icon">★</span><span>저장</span>
-  </button>
-  <button class="bn-btn"        data-sec="ai"        onclick="showSection('ai')">
-    <span class="bn-icon">🤖</span><span>AI</span>
   </button>
   <button class="bn-btn"        data-sec="flashcard" onclick="showSection('flashcard')">
     <span class="bn-icon">📇</span><span>카드</span>
@@ -1130,7 +1101,7 @@ function saveWrongList(l) {
 /* ═══════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════ */
-const SECS = ['home','phrases','sentences','quiz','bookmarks','ai','flashcard'];
+const SECS = ['home','phrases','sentences','quiz','bookmarks','flashcard'];
 let currentSec = 'home';
 let shuffledPhrases   = [];
 let shuffledSentences = [];
@@ -1344,7 +1315,7 @@ function renderSentences() {
           <div>
             <div class="sent-en">${esc(s.en)}</div>
             <div class="sent-ko">${esc(s.ko)}</div>
-            ${s.note ? `<span class="sent-note">${esc(s.note)}</span>` : ''}
+            ${s.note ? `<div class="sent-note">💡 ${esc(s.note)}</div>` : ''}
           </div>
           <button class="bm-btn${isBm?' starred':''}" onclick="toggleBookmark(${s.id})" title="즐겨찾기">${isBm?'★':'☆'}</button>
         </div>
@@ -1405,7 +1376,7 @@ function renderBookmarks() {
             <div>
               <div class="sent-en">${esc(s.en)}</div>
               <div class="sent-ko">${esc(s.ko)}</div>
-              ${s.note ? `<span class="sent-note">${esc(s.note)}</span>` : ''}
+              ${s.note ? `<div class="sent-note">💡 ${esc(s.note)}</div>` : ''}
             </div>
             <button class="bm-btn starred" onclick="removeSentFromBm(${s.id})" title="저장 해제">★</button>
           </div>
@@ -1692,73 +1663,6 @@ function renderFlashcard() {
         <button class="fc-btn" onclick="fcNext()" ${fcState.index===fcState.pool.length-1?'disabled':''}>다음 →</button>
       </div>
     </div>`;
-}
-
-/* ═══════════════════════════════════════════════
-   AI ASSISTANT
-═══════════════════════════════════════════════ */
-const aiHistory = []; // { role: 'user'|'assistant', content: string }
-
-function appendAiMessage(role, text) {
-  const container = document.getElementById('ai-messages');
-  const div = document.createElement('div');
-  div.className = `ai-msg ai-msg--${role === 'user' ? 'user' : 'bot'}`;
-  div.innerHTML = `<div class="ai-msg-bubble">${esc(text).replace(/\n/g, '<br>')}</div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-  return div;
-}
-
-function appendLoadingMessage() {
-  const container = document.getElementById('ai-messages');
-  const div = document.createElement('div');
-  div.className = 'ai-msg ai-msg--bot ai-msg--loading';
-  div.innerHTML = '<div class="ai-msg-bubble">답변을 생성하는 중...</div>';
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-  return div;
-}
-
-async function sendAiMessage() {
-  const input = document.getElementById('ai-input');
-  const sendBtn = document.getElementById('ai-send-btn');
-  const question = input.value.trim();
-  if (!question) return;
-
-  input.value = '';
-  input.disabled = true;
-  sendBtn.disabled = true;
-
-  appendAiMessage('user', question);
-  aiHistory.push({ role: 'user', content: question });
-
-  const loadingEl = appendLoadingMessage();
-
-  try {
-    const res = await fetch('/api/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: aiHistory }),
-    });
-
-    const data = await res.json();
-
-    loadingEl.remove();
-
-    if (data.error) {
-      appendAiMessage('bot', `오류가 발생했습니다: ${data.error}`);
-    } else {
-      appendAiMessage('bot', data.answer);
-      aiHistory.push({ role: 'assistant', content: data.answer });
-    }
-  } catch {
-    loadingEl.remove();
-    appendAiMessage('bot', '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해 주세요.');
-  } finally {
-    input.disabled = false;
-    sendBtn.disabled = false;
-    input.focus();
-  }
 }
 
 /* ═══════════════════════════════════════════════
