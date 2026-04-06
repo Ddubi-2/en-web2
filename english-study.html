@@ -662,6 +662,22 @@ body {
 }
 .sec-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
 
+/* ── LEVEL FILTER ── */
+.level-filter-btn {
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.level-filter-btn:hover { border-color: var(--border2); color: var(--text1); }
+.level-filter-btn.active { background: var(--text1); color: var(--bg); border-color: var(--text1); }
+
 /* ── VOICE ── */
 .voice-wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .voice-btn-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 0 8px; }
@@ -930,6 +946,12 @@ body {
       <button class="filter-btn"        data-cat="idiom"   onclick="setPhraseFilter('idiom')">숙어</button>
       <button class="filter-btn"        data-cat="slang"   onclick="setPhraseFilter('slang')">슬랭</button>
       <button class="filter-btn"        data-cat="filler"  onclick="setPhraseFilter('filler')">필러 표현</button>
+    </div>
+    <div class="filter-row" id="level-filters">
+      <button class="level-filter-btn active" data-level="all"          onclick="setPhraseLevel('all')">전체 레벨</button>
+      <button class="level-filter-btn"        data-level="beginner"     onclick="setPhraseLevel('beginner')">🟢 입문</button>
+      <button class="level-filter-btn"        data-level="intermediate" onclick="setPhraseLevel('intermediate')">🟡 중급</button>
+      <button class="level-filter-btn"        data-level="advanced"     onclick="setPhraseLevel('advanced')">🔴 고급</button>
     </div>
     <div class="count-label" id="phrase-count"></div>
     <div id="phrase-list"></div>
@@ -1272,11 +1294,20 @@ function renderHome() {
    PHRASES
 ═══════════════════════════════════════════════ */
 let currentPhraseCat = 'all';
+let currentPhraseLevel = 'all';
 
 function setPhraseFilter(cat) {
   currentPhraseCat = cat;
   document.querySelectorAll('#phrase-filters .filter-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.cat===cat);
+  });
+  renderPhrases();
+}
+
+function setPhraseLevel(level) {
+  currentPhraseLevel = level;
+  document.querySelectorAll('#level-filters .level-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.level===level);
   });
   renderPhrases();
 }
@@ -1296,6 +1327,7 @@ function renderPhrases() {
   const query = (document.getElementById('phrase-search')?.value || '').toLowerCase().trim();
   const src   = shuffledPhrases.length ? shuffledPhrases : DATA.phrases;
   let items   = currentPhraseCat==='all' ? src : src.filter(p=>p.cat===currentPhraseCat);
+  if (currentPhraseLevel !== 'all') items = items.filter(p => p.level === currentPhraseLevel);
   if (query) {
     items = items.filter(p => p.en.toLowerCase().includes(query) || p.ko.includes(query));
   }
