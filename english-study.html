@@ -1759,7 +1759,11 @@ async function toggleVoiceRecord() {
   }
 
   audioChunks = [];
-  mediaRecorder = new MediaRecorder(stream);
+  // Safari(iOS)는 webm 미지원 → mp4 사용, 나머지는 webm
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                 : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4'
+                 : '';
+  mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
   mediaRecorder.onstop = async () => {
@@ -1767,9 +1771,11 @@ async function toggleVoiceRecord() {
     setMicState('processing');
     setVoiceStatus('음성 인식 중...');
 
-    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    const actualMime = mediaRecorder.mimeType || 'audio/webm';
+    const ext  = actualMime.includes('mp4') ? 'mp4' : actualMime.includes('ogg') ? 'ogg' : 'webm';
+    const blob = new Blob(audioChunks, { type: actualMime });
     const formData = new FormData();
-    formData.append('audio', blob, 'voice.webm');
+    formData.append('audio', blob, `voice.${ext}`);
 
     let userText;
     try {

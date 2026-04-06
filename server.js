@@ -114,17 +114,23 @@ Rules:
 // 1. STT: 오디오 → 텍스트 (Whisper)
 app.post('/api/voice/transcribe', requireOpenAI, upload.single('audio'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: '오디오 파일이 없습니다.' });
-  const tmpPath = join(__dirname, `_tmp_${Date.now()}.webm`);
+
+  // 클라이언트가 보낸 파일명에서 확장자 추출 (webm / mp4 / ogg)
+  const origName = req.file.originalname || 'voice.webm';
+  const ext      = origName.split('.').pop() || 'webm';
+  const tmpPath  = join(__dirname, `_tmp_${Date.now()}.${ext}`);
+
   try {
     writeFileSync(tmpPath, req.file.buffer);
     const result = await openai.audio.transcriptions.create({
-      file: createReadStream(tmpPath),
-      model: 'whisper-1',
+      file:     createReadStream(tmpPath),
+      model:    'whisper-1',
+      language: 'en',
     });
     res.json({ text: result.text });
   } catch (err) {
     console.error('Whisper 오류:', err.message);
-    res.status(500).json({ error: '음성 인식에 실패했습니다.' });
+    res.status(500).json({ error: `음성 인식 실패: ${err.message}` });
   } finally {
     try { unlinkSync(tmpPath); } catch {}
   }
