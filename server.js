@@ -89,7 +89,22 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
+import { networkInterfaces } from 'os';
+
+function getLocalIP() {
+  const nets = networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    for (const net of iface) {
+      if (net.family === 'IPv4' && !net.internal) return net.address;
+    }
+  }
+  return 'localhost';
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`서버 실행 중 → http://localhost:${PORT}`);
+  const ip = getLocalIP();
+  console.log(`서버 실행 중`);
+  console.log(`  PC:     http://localhost:${PORT}`);
+  console.log(`  휴대폰: http://${ip}:${PORT}  (같은 와이파이 필요)`);
 });
