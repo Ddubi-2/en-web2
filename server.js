@@ -1,13 +1,25 @@
 import 'dotenv/config';
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync } from 'fs';
+import OpenAI from 'openai';
+import multer from 'multer';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { createReadStream } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+function requireOpenAI(req, res, next) {
+  if (!openai) return res.status(503).json({ error: 'OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.' });
+  next();
+}
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -86,6 +98,72 @@ app.post('/api/ask', async (req, res) => {
   } catch (err) {
     console.error('Claude API 오류:', err.message);
     res.status(500).json({ error: 'AI 응답 중 오류가 발생했습니다.' });
+  }
+});
+
+/* ── 음성 대화 ── */
+
+const VOICE_SYSTEM_PROMPT = `You are a friendly English conversation partner helping Korean learners practice English.
+Rules:
+- Always reply in English (short, natural sentences — 1~3 sentences max).
+- After your English reply, add a Korean translation on a new line starting with "🇰🇷 ".
+- Gently correct grammar mistakes if any, starting with "💡 ".
+- Keep the conversation going by asking a follow-up question.
+- Be encouraging and positive.`;
+
+// 1. STT: 오디오 → 텍스트 (Whisper)
+app.post('/api/voice/transcribe', requireOpenAI, upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '오디오 파일이 없습니다.' });
+  const tmpPath = join(__dirname, `_tmp_${Date.now()}.webm`);
+  try {
+    writeFileSync(tmpPath, req.file.buffer);
+    const result = await openai.audio.transcriptions.create({
+      file: createReadStream(tmpPath),
+      model: 'whisper-1',
+    });
+    res.json({ text: result.text });
+  } catch (err) {
+    console.error('Whisper 오류:', err.message);
+    res.status(500).json({ error: '음성 인식에 실패했습니다.' });
+  } finally {
+    try { unlinkSync(tmpPath); } catch {}
+  }
+});
+
+// 2. Chat: 텍스트 → Claude 답변
+app.post('/api/voice/chat', requireOpenAI, async (req, res) => {
+  const { messages } = req.body;
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: '잘못된 요청입니다.' });
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 256,
+      system: VOICE_SYSTEM_PROMPT,
+      messages,
+    });
+    res.json({ answer: response.content[0].text });
+  } catch (err) {
+    console.error('Claude 음성 대화 오류:', err.message);
+    res.status(500).json({ error: 'AI 응답 중 오류가 발생했습니다.' });
+  }
+});
+
+// 3. TTS: 텍스트 → 음성 (OpenAI TTS)
+app.post('/api/voice/speak', requireOpenAI, async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: '텍스트가 없습니다.' });
+  try {
+    const mp3 = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'nova',
+      input: text,
+    });
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(buffer);
+  } catch (err) {
+    console.error('TTS 오류:', err.message);
+    res.status(500).json({ error: '음성 생성에 실패했습니다.' });
   }
 });
 

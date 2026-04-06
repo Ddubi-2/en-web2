@@ -662,6 +662,33 @@ body {
 }
 .sec-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
 
+/* ── VOICE ── */
+.voice-wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.voice-btn-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 0 8px; }
+.voice-mic-btn {
+  width: 80px; height: 80px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--brand); color: #fff; font-size: 32px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.voice-mic-btn:hover { transform: scale(1.06); }
+.voice-mic-btn.recording { background: #e53e3e; animation: pulse-ring 1.2s ease-out infinite; }
+.voice-mic-btn.processing { background: #888; cursor: not-allowed; }
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(229,62,62,.5); }
+  70%  { box-shadow: 0 0 0 18px rgba(229,62,62,0); }
+  100% { box-shadow: 0 0 0 0 rgba(229,62,62,0); }
+}
+.voice-status { font-size: 13px; color: var(--text3); min-height: 18px; }
+.voice-history { display: flex; flex-direction: column; gap: 10px; }
+.voice-bubble { padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.65; max-width: 90%; }
+.voice-bubble.user { background: var(--brand); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.voice-bubble.bot  { background: var(--surface2); color: var(--text1); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+.voice-bubble .ko  { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 4px; }
+.voice-bubble.bot .ko { color: var(--text3); }
+.voice-empty { text-align: center; padding: 32px 0; color: var(--text3); font-size: 13px; line-height: 1.8; }
+
 /* ── FLASHCARD ── */
 .fc-wrap { max-width: 480px; margin: 0 auto; }
 .fc-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -876,6 +903,7 @@ body {
   <button class="nav-btn"        data-sec="quiz"      onclick="showSection('quiz')">🎯 퀴즈</button>
   <button class="nav-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">★ 즐겨찾기</button>
   <button class="nav-btn"        data-sec="flashcard" onclick="showSection('flashcard')">📇 플래시카드</button>
+  <button class="nav-btn"        data-sec="voice"     onclick="showSection('voice')">🎙️ 음성 대화</button>
 </nav>
 
 <main class="content">
@@ -952,6 +980,23 @@ body {
     <div id="bm-list"></div>
   </section>
 
+  <!-- VOICE -->
+  <section id="sec-voice" class="section">
+    <div class="sec-header">
+      <div class="sec-title">음성 대화</div>
+      <div class="sec-desc">마이크 버튼을 누르고 영어로 말해보세요. AI가 자연스러운 영어로 대화해줍니다.</div>
+    </div>
+    <div class="voice-wrap">
+      <div class="voice-btn-area">
+        <button class="voice-mic-btn" id="voice-mic-btn" onclick="toggleVoiceRecord()">🎙️</button>
+        <div class="voice-status" id="voice-status">버튼을 눌러 말하기 시작</div>
+      </div>
+      <div class="voice-history" id="voice-history">
+        <div class="voice-empty">🎙️ 마이크 버튼을 눌러<br>영어로 대화를 시작해보세요!</div>
+      </div>
+    </div>
+  </section>
+
   <!-- FLASHCARD -->
   <section id="sec-flashcard" class="section">
     <div class="sec-header">
@@ -982,6 +1027,9 @@ body {
   </button>
   <button class="bn-btn"        data-sec="flashcard" onclick="showSection('flashcard')">
     <span class="bn-icon">📇</span><span>카드</span>
+  </button>
+  <button class="bn-btn"        data-sec="voice"     onclick="showSection('voice')">
+    <span class="bn-icon">🎙️</span><span>음성</span>
   </button>
 </nav>
 
@@ -1101,7 +1149,7 @@ function saveWrongList(l) {
 /* ═══════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════ */
-const SECS = ['home','phrases','sentences','quiz','bookmarks','flashcard'];
+const SECS = ['home','phrases','sentences','quiz','bookmarks','flashcard','voice'];
 let currentSec = 'home';
 let shuffledPhrases   = [];
 let shuffledSentences = [];
@@ -1663,6 +1711,132 @@ function renderFlashcard() {
         <button class="fc-btn" onclick="fcNext()" ${fcState.index===fcState.pool.length-1?'disabled':''}>다음 →</button>
       </div>
     </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   VOICE
+═══════════════════════════════════════════════ */
+let mediaRecorder = null;
+let audioChunks   = [];
+let isRecording   = false;
+let voiceMsgHistory = [];  // Claude 대화 기록
+
+function setVoiceStatus(text) {
+  document.getElementById('voice-status').textContent = text;
+}
+
+function setMicState(state) {
+  const btn = document.getElementById('voice-mic-btn');
+  btn.className = 'voice-mic-btn ' + state;
+  btn.textContent = state === 'recording' ? '⏹️' : state === 'processing' ? '⏳' : '🎙️';
+  btn.disabled = state === 'processing';
+}
+
+function appendVoiceBubble(role, enText, koText) {
+  const history = document.getElementById('voice-history');
+  const empty = history.querySelector('.voice-empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'voice-bubble ' + (role === 'user' ? 'user' : 'bot');
+  div.innerHTML = esc(enText) + (koText ? `<div class="ko">${esc(koText)}</div>` : '');
+  history.appendChild(div);
+  history.scrollTop = history.scrollHeight;
+}
+
+async function toggleVoiceRecord() {
+  if (isRecording) {
+    mediaRecorder.stop();
+    return;
+  }
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    setVoiceStatus('마이크 접근 권한이 필요합니다.');
+    return;
+  }
+
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+  mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    setMicState('processing');
+    setVoiceStatus('음성 인식 중...');
+
+    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    const formData = new FormData();
+    formData.append('audio', blob, 'voice.webm');
+
+    let userText;
+    try {
+      const sttRes = await fetch('/api/voice/transcribe', { method: 'POST', body: formData });
+      const sttData = await sttRes.json();
+      if (sttData.error) throw new Error(sttData.error);
+      userText = sttData.text;
+    } catch (err) {
+      setVoiceStatus('음성 인식 실패: ' + err.message);
+      setMicState('');
+      return;
+    }
+
+    appendVoiceBubble('user', userText);
+    voiceMsgHistory.push({ role: 'user', content: userText });
+
+    setVoiceStatus('AI 답변 생성 중...');
+    let botText;
+    try {
+      const chatRes = await fetch('/api/voice/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: voiceMsgHistory }),
+      });
+      const chatData = await chatRes.json();
+      if (chatData.error) throw new Error(chatData.error);
+      botText = chatData.answer;
+    } catch (err) {
+      setVoiceStatus('AI 응답 실패: ' + err.message);
+      setMicState('');
+      return;
+    }
+
+    voiceMsgHistory.push({ role: 'assistant', content: botText });
+
+    // 영어 부분만 추출해서 TTS로 읽기 (🇰🇷 이후 제거)
+    const enOnly = botText.split('\n').filter(l => !l.startsWith('🇰🇷') && !l.startsWith('💡')).join(' ').trim();
+    const koLine = botText.split('\n').find(l => l.startsWith('🇰🇷'));
+    appendVoiceBubble('bot', botText.replace(koLine || '', '').trim(), koLine ? koLine.replace('🇰🇷 ', '') : '');
+
+    setVoiceStatus('음성 재생 중...');
+    try {
+      const ttsRes = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: enOnly }),
+      });
+      const audioBlob = await ttsRes.blob();
+      const audioUrl  = URL.createObjectURL(audioBlob);
+      const audio     = new Audio(audioUrl);
+      audio.onended   = () => { setVoiceStatus('버튼을 눌러 말하기 시작'); URL.revokeObjectURL(audioUrl); };
+      audio.play();
+    } catch {
+      setVoiceStatus('버튼을 눌러 말하기 시작');
+    }
+
+    setMicState('');
+  };
+
+  mediaRecorder.start();
+  isRecording = true;
+  setMicState('recording');
+  setVoiceStatus('말하고 있어요... 버튼을 눌러 완료');
+  isRecording = true;
+
+  // mediaRecorder.stop() 호출 시 isRecording 초기화
+  mediaRecorder.addEventListener('stop', () => { isRecording = false; });
 }
 
 /* ═══════════════════════════════════════════════
