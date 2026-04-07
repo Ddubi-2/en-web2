@@ -886,6 +886,30 @@ body {
   .hero-en { font-size: 18px; }
 }
 
+/* ── TRANSLATE EXTRAS ── */
+.tr-alt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.tr-alt-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r1);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text1);
+  font-style: italic;
+}
+.tr-word-note {
+  background: var(--surface2);
+  border-left: 3px solid var(--brand);
+  padding: 8px 12px;
+  border-radius: 0 var(--r1) var(--r1) 0;
+  font-size: 13px;
+}
+
 /* ── AI CHAT ── */
 .ai-chat-wrap {
   display: flex;
@@ -2070,26 +2094,40 @@ async function checkTranslation() {
     return;
   }
 
+  const altHtml = (evalData.alternatives && evalData.alternatives.length)
+    ? `<div class="tr-answer-label" style="margin-top:12px">다른 표현 방법 💬</div>
+       <div class="tr-alt-list">${evalData.alternatives.map(a => `<div class="tr-alt-item">${esc(a)}</div>`).join('')}</div>`
+    : '';
+
+  const wordNoteHtml = evalData.wordNotes
+    ? `<div class="tr-answer-label" style="margin-top:12px">단어 선택 포인트 📌</div>
+       <div class="tr-answer-text tr-word-note">${esc(evalData.wordNotes)}</div>`
+    : '';
+
   if (evalData.correct) {
     trCorrect++;
     resultEl.className = 'tr-result correct';
     resultEl.innerHTML = `
-      <div class="tr-result-title">정답!</div>
+      <div class="tr-result-title">✅ 정답!</div>
       <div class="tr-answer-label">AI 피드백</div>
       <div class="tr-answer-text">${esc(evalData.feedback)}</div>
-      <div class="tr-answer-label" style="margin-top:10px">모범 답안</div>
+      <div class="tr-answer-label" style="margin-top:12px">모범 답안</div>
       <div class="tr-answer-text">${esc(s.en)}</div>
+      ${wordNoteHtml}
+      ${altHtml}
     `;
   } else {
     resultEl.className = 'tr-result wrong';
     resultEl.innerHTML = `
-      <div class="tr-result-title">다시 확인해보세요</div>
+      <div class="tr-result-title">❌ 다시 확인해보세요</div>
       <div class="tr-answer-label">AI 피드백</div>
       <div class="tr-answer-text">${esc(evalData.feedback)}</div>
-      ${evalData.hint ? `<div class="tr-answer-label" style="margin-top:10px">힌트 💡</div><div class="tr-answer-text">${esc(evalData.hint)}</div>` : ''}
-      <div class="tr-answer-label" style="margin-top:10px">모범 답안</div>
+      ${evalData.hint ? `<div class="tr-answer-label" style="margin-top:12px">핵심 힌트 💡</div><div class="tr-answer-text">${esc(evalData.hint)}</div>` : ''}
+      <div class="tr-answer-label" style="margin-top:12px">모범 답안</div>
       <div class="tr-answer-text">${esc(s.en)}</div>
-      ${s.note ? `<div class="tr-answer-label" style="margin-top:10px">설명</div><div class="tr-answer-text" style="font-size:13px">${esc(s.note)}</div>` : ''}
+      ${wordNoteHtml}
+      ${altHtml}
+      ${s.note ? `<div class="tr-answer-label" style="margin-top:12px">참고</div><div class="tr-answer-text" style="font-size:12px;color:var(--text3)">${esc(s.note)}</div>` : ''}
     `;
   }
 

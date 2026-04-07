@@ -181,7 +181,7 @@ app.post('/api/translate/check', async (req, res) => {
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 512,
+      max_tokens: 1024,
       system: `You are an English writing evaluator for Korean learners. Evaluate the user's English translation and respond ONLY with valid JSON — no markdown, no extra text.`,
       messages: [{
         role: 'user',
@@ -194,13 +194,14 @@ Respond with JSON exactly like this:
 {
   "correct": true or false,
   "feedback": "한국어로 짧게 (1~2문장): 정답이면 칭찬, 틀렸으면 어디가 틀렸는지 구체적으로",
-  "hint": "한국어로 (틀렸을 때만): 올바른 표현을 위한 핵심 힌트 1가지, 정답이면 빈 문자열"
+  "hint": "한국어로 (틀렸을 때만): 올바른 표현을 위한 핵심 힌트 1가지, 정답이면 빈 문자열",
+  "wordNotes": "한국어로 (1~2문장): 모범 답안의 핵심 단어나 표현이 이 맥락에서 왜 자연스러운지 설명. 비슷한 단어와의 뉘앙스 차이도 언급",
+  "alternatives": ["같은 의미의 자연스러운 대안 표현 1 (영어)", "같은 의미의 자연스러운 대안 표현 2 (영어)"]
 }`,
       }],
     });
 
     let raw = response.content[0].text.trim();
-    // strip markdown code fences if present
     raw = raw.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
     const result = JSON.parse(raw);
     res.json(result);
