@@ -173,6 +173,43 @@ app.post('/api/voice/speak', requireOpenAI, async (req, res) => {
   }
 });
 
+// 번역 채점 API
+app.post('/api/translate/check', async (req, res) => {
+  const { ko, en, userAnswer } = req.body;
+  if (!ko || !en || !userAnswer) return res.status(400).json({ error: '잘못된 요청입니다.' });
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 512,
+      system: `You are an English writing evaluator for Korean learners. Evaluate the user's English translation and respond ONLY with valid JSON — no markdown, no extra text.`,
+      messages: [{
+        role: 'user',
+        content: `Korean sentence: "${ko}"
+Model answer: "${en}"
+User's answer: "${userAnswer}"
+
+Evaluate whether the user's answer is correct or acceptable (same meaning, even if different wording).
+Respond with JSON exactly like this:
+{
+  "correct": true or false,
+  "feedback": "한국어로 짧게 (1~2문장): 정답이면 칭찬, 틀렸으면 어디가 틀렸는지 구체적으로",
+  "hint": "한국어로 (틀렸을 때만): 올바른 표현을 위한 핵심 힌트 1가지, 정답이면 빈 문자열"
+}`,
+      }],
+    });
+
+    let raw = response.content[0].text.trim();
+    // strip markdown code fences if present
+    raw = raw.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+    const result = JSON.parse(raw);
+    res.json(result);
+  } catch (err) {
+    console.error('번역 채점 오류:', err.message);
+    res.status(500).json({ error: 'AI 채점 중 오류가 발생했습니다.' });
+  }
+});
+
 import { networkInterfaces } from 'os';
 
 function getLocalIP() {

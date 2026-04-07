@@ -705,6 +705,71 @@ body {
 .voice-bubble.bot .ko { color: var(--text3); }
 .voice-empty { text-align: center; padding: 32px 0; color: var(--text3); font-size: 13px; line-height: 1.8; }
 
+/* ── TRANSLATE PRACTICE ── */
+.tr-wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.tr-progress-row { display: flex; justify-content: space-between; align-items: center; }
+.tr-progress-label { font-size: 12px; color: var(--text3); font-weight: 600; }
+.tr-score-label { font-size: 12px; color: var(--text2); font-weight: 700; }
+.tr-prompt-card { padding: 20px; }
+.tr-prompt-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 10px;
+}
+.tr-prompt-ko { font-size: 20px; font-weight: 700; color: var(--text1); line-height: 1.4; margin-bottom: 8px; }
+.tr-prompt-cat {
+  display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 4px; background: var(--surface3); color: var(--text3);
+}
+.tr-input {
+  width: 100%; border: 1px solid var(--border); border-radius: var(--r2);
+  padding: 12px 14px; font-size: 15px; font-family: inherit; resize: none;
+  background: var(--surface); color: var(--text1); transition: border-color 0.15s;
+  outline: none;
+}
+.tr-input:focus { border-color: var(--brand); }
+.tr-btn-row { display: flex; gap: 8px; }
+.tr-check-btn {
+  flex: 2; padding: 12px; background: var(--brand); color: #fff; border: none;
+  border-radius: var(--r2); font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s;
+}
+.tr-check-btn:hover { background: var(--brand-hover); }
+.tr-skip-btn {
+  flex: 1; padding: 12px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
+  border-radius: var(--r2); font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+}
+.tr-skip-btn:hover { background: var(--surface3); }
+.tr-result {
+  border-radius: var(--r2); padding: 16px;
+  font-size: 14px; line-height: 1.7;
+}
+.tr-result.correct {
+  background: var(--brand); color: #fff;
+}
+.tr-result.wrong {
+  background: var(--surface2); color: var(--text1); border: 1px solid var(--border);
+}
+.tr-result-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.tr-answer-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.65; margin-bottom: 4px; margin-top: 10px; }
+.tr-answer-text { font-size: 14px; font-weight: 500; }
+.tr-checking { font-size: 13px; color: var(--text3); text-align: center; padding: 8px 0; }
+.tr-next-row { text-align: center; }
+.tr-next-btn {
+  padding: 12px 36px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--r2); font-size: 14px; font-weight: 700; cursor: pointer; color: var(--text1);
+  transition: background 0.15s;
+}
+.tr-next-btn:hover { background: var(--surface2); }
+.tr-done-card {
+  text-align: center; padding: 40px 24px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r3); box-shadow: var(--shadow);
+}
+.tr-done-score { font-size: 48px; font-weight: 800; color: var(--text1); letter-spacing: -1px; }
+.tr-done-label { font-size: 13px; color: var(--text3); margin-top: 4px; margin-bottom: 20px; }
+.tr-restart-btn {
+  padding: 12px 32px; background: var(--brand); color: #fff; border: none;
+  border-radius: var(--r2); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+
 /* ── FLASHCARD ── */
 .fc-wrap { max-width: 480px; margin: 0 auto; }
 .fc-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -920,6 +985,7 @@ body {
   <button class="nav-btn"        data-sec="bookmarks" onclick="showSection('bookmarks')">★ 즐겨찾기</button>
   <button class="nav-btn"        data-sec="flashcard" onclick="showSection('flashcard')">📇 플래시카드</button>
   <button class="nav-btn"        data-sec="voice"     onclick="showSection('voice')">🎙️ 음성 대화</button>
+  <button class="nav-btn"        data-sec="translate" onclick="showSection('translate')">✏️ 번역 연습</button>
 </nav>
 
 <main class="content">
@@ -1019,6 +1085,34 @@ body {
     </div>
   </section>
 
+  <!-- TRANSLATE PRACTICE -->
+  <section id="sec-translate" class="section">
+    <div class="sec-header">
+      <div class="sec-title">번역 연습</div>
+      <div class="sec-desc">한국어 문장을 보고 영어로 번역해 보세요.</div>
+    </div>
+    <div class="tr-wrap">
+      <div class="tr-progress-row">
+        <span class="tr-progress-label" id="tr-progress">0 / 0</span>
+        <span class="tr-score-label" id="tr-score">점수: 0 / 0</span>
+      </div>
+      <div class="card tr-prompt-card">
+        <div class="tr-prompt-label">한국어 문장</div>
+        <div class="tr-prompt-ko" id="tr-ko">—</div>
+        <div class="tr-prompt-cat" id="tr-cat"></div>
+      </div>
+      <textarea class="tr-input" id="tr-input" placeholder="여기에 영어 번역을 입력하세요..." rows="3"></textarea>
+      <div class="tr-btn-row">
+        <button class="tr-check-btn" onclick="checkTranslation()">확인</button>
+        <button class="tr-skip-btn" onclick="nextTranslation(false)">건너뛰기</button>
+      </div>
+      <div class="tr-result" id="tr-result" style="display:none"></div>
+      <div class="tr-next-row" id="tr-next-row" style="display:none">
+        <button class="tr-next-btn" onclick="nextTranslation(true)">다음 문장 →</button>
+      </div>
+    </div>
+  </section>
+
   <!-- FLASHCARD -->
   <section id="sec-flashcard" class="section">
     <div class="sec-header">
@@ -1052,6 +1146,9 @@ body {
   </button>
   <button class="bn-btn"        data-sec="voice"     onclick="showSection('voice')">
     <span class="bn-icon">🎙️</span><span>음성</span>
+  </button>
+  <button class="bn-btn"        data-sec="translate" onclick="showSection('translate')">
+    <span class="bn-icon">✏️</span><span>번역</span>
   </button>
 </nav>
 
@@ -1171,7 +1268,7 @@ function saveWrongList(l) {
 /* ═══════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════ */
-const SECS = ['home','phrases','sentences','quiz','bookmarks','flashcard','voice'];
+const SECS = ['home','phrases','sentences','quiz','bookmarks','flashcard','voice','translate'];
 let currentSec = 'home';
 let shuffledPhrases   = [];
 let shuffledSentences = [];
@@ -1206,6 +1303,9 @@ function showSection(id) {
   }
   if (id==='flashcard') {
     initFlashcard();
+  }
+  if (id==='translate') {
+    initTranslate();
   }
 }
 
@@ -1875,6 +1975,145 @@ async function toggleVoiceRecord() {
 
   // mediaRecorder.stop() 호출 시 isRecording 초기화
   mediaRecorder.addEventListener('stop', () => { isRecording = false; });
+}
+
+/* ═══════════════════════════════════════════════
+   TRANSLATE PRACTICE
+═══════════════════════════════════════════════ */
+let trQueue   = [];
+let trIndex   = 0;
+let trCorrect = 0;
+let trTotal   = 0;
+let trChecked = false;
+
+function initTranslate() {
+  trQueue   = shuffle([...DATA.sentences]);
+  trIndex   = 0;
+  trCorrect = 0;
+  trTotal   = 0;
+  trChecked = false;
+  // Restore main UI (in case done-card replaced it)
+  const wrap = document.querySelector('#sec-translate .tr-wrap');
+  wrap.innerHTML = `
+    <div class="tr-progress-row">
+      <span class="tr-progress-label" id="tr-progress">0 / 0</span>
+      <span class="tr-score-label" id="tr-score">점수: 0 / 0</span>
+    </div>
+    <div class="card tr-prompt-card">
+      <div class="tr-prompt-label">한국어 문장</div>
+      <div class="tr-prompt-ko" id="tr-ko">—</div>
+      <div class="tr-prompt-cat" id="tr-cat"></div>
+    </div>
+    <textarea class="tr-input" id="tr-input" placeholder="여기에 영어 번역을 입력하세요..." rows="3"></textarea>
+    <div class="tr-btn-row">
+      <button class="tr-check-btn" onclick="checkTranslation()">확인</button>
+      <button class="tr-skip-btn" onclick="nextTranslation(false)">건너뛰기</button>
+    </div>
+    <div class="tr-result" id="tr-result" style="display:none"></div>
+    <div class="tr-next-row" id="tr-next-row" style="display:none">
+      <button class="tr-next-btn" onclick="nextTranslation(true)">다음 문장 →</button>
+    </div>
+  `;
+  showTranslateQuestion();
+}
+
+function showTranslateQuestion() {
+  if (trIndex >= trQueue.length) {
+    showTranslateDone();
+    return;
+  }
+  const s = trQueue[trIndex];
+  document.getElementById('tr-ko').textContent = s.ko;
+  document.getElementById('tr-cat').textContent = s.cat || '';
+  document.getElementById('tr-progress').textContent = `${trIndex + 1} / ${trQueue.length}`;
+  document.getElementById('tr-score').textContent = `점수: ${trCorrect} / ${trTotal}`;
+  document.getElementById('tr-input').value = '';
+  document.getElementById('tr-input').disabled = false;
+  document.getElementById('tr-result').style.display = 'none';
+  document.getElementById('tr-next-row').style.display = 'none';
+  trChecked = false;
+  const inp = document.getElementById('tr-input');
+  inp.focus();
+  inp.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); checkTranslation(); }
+  };
+}
+
+async function checkTranslation() {
+  if (trChecked) return;
+  const s       = trQueue[trIndex];
+  const userAns = document.getElementById('tr-input').value.trim();
+  if (!userAns) return;
+
+  trChecked = true;
+  trTotal++;
+  document.getElementById('tr-input').disabled = true;
+
+  const resultEl = document.getElementById('tr-result');
+  resultEl.style.display = 'block';
+  resultEl.className = 'tr-result';
+  resultEl.innerHTML = `<div class="tr-checking">AI가 채점 중...</div>`;
+
+  let evalData;
+  try {
+    const r = await fetch('/api/translate/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ko: s.ko, en: s.en, userAnswer: userAns }),
+    });
+    evalData = await r.json();
+    if (evalData.error) throw new Error(evalData.error);
+  } catch (err) {
+    resultEl.className = 'tr-result wrong';
+    resultEl.innerHTML = `<div class="tr-result-title">오류</div><div>${esc(err.message)}</div>`;
+    document.getElementById('tr-next-row').style.display = 'block';
+    return;
+  }
+
+  if (evalData.correct) {
+    trCorrect++;
+    resultEl.className = 'tr-result correct';
+    resultEl.innerHTML = `
+      <div class="tr-result-title">정답!</div>
+      <div class="tr-answer-label">AI 피드백</div>
+      <div class="tr-answer-text">${esc(evalData.feedback)}</div>
+      <div class="tr-answer-label" style="margin-top:10px">모범 답안</div>
+      <div class="tr-answer-text">${esc(s.en)}</div>
+    `;
+  } else {
+    resultEl.className = 'tr-result wrong';
+    resultEl.innerHTML = `
+      <div class="tr-result-title">다시 확인해보세요</div>
+      <div class="tr-answer-label">AI 피드백</div>
+      <div class="tr-answer-text">${esc(evalData.feedback)}</div>
+      ${evalData.hint ? `<div class="tr-answer-label" style="margin-top:10px">힌트 💡</div><div class="tr-answer-text">${esc(evalData.hint)}</div>` : ''}
+      <div class="tr-answer-label" style="margin-top:10px">모범 답안</div>
+      <div class="tr-answer-text">${esc(s.en)}</div>
+      ${s.note ? `<div class="tr-answer-label" style="margin-top:10px">설명</div><div class="tr-answer-text" style="font-size:13px">${esc(s.note)}</div>` : ''}
+    `;
+  }
+
+  document.getElementById('tr-score').textContent = `점수: ${trCorrect} / ${trTotal}`;
+  document.getElementById('tr-next-row').style.display = 'block';
+}
+
+function nextTranslation(counted) {
+  if (!counted && !trChecked) {
+    // skip without counting
+  }
+  trIndex++;
+  trChecked = false;
+  showTranslateQuestion();
+}
+
+function showTranslateDone() {
+  const pct  = trTotal > 0 ? Math.round(trCorrect / trTotal * 100) : 0;
+  const wrap = document.querySelector('#sec-translate .tr-wrap');
+  wrap.innerHTML = `<div class="tr-done-card">
+    <div class="tr-done-score">${trCorrect} / ${trTotal}</div>
+    <div class="tr-done-label">정답률 ${pct}% — 모든 문장을 완료했습니다!</div>
+    <button class="tr-restart-btn" onclick="initTranslate()">다시 연습하기</button>
+  </div>`;
 }
 
 /* ═══════════════════════════════════════════════
