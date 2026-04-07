@@ -174,6 +174,38 @@ app.post('/api/voice/speak', requireOpenAI, async (req, res) => {
 });
 
 // 번역 채점 API
+const TRANSLATE_TOOL = {
+  name: 'evaluate_translation',
+  description: 'Evaluate the user\'s English translation of a Korean sentence.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      correct: {
+        type: 'boolean',
+        description: 'true if the user\'s answer is correct or acceptable (same meaning, even if different wording)',
+      },
+      feedback: {
+        type: 'string',
+        description: '한국어로 1~2문장: 정답이면 칭찬, 틀렸으면 어디가 틀렸는지 구체적으로',
+      },
+      hint: {
+        type: 'string',
+        description: '한국어로: 틀렸을 때만 핵심 힌트 1가지, 정답이면 빈 문자열',
+      },
+      wordNotes: {
+        type: 'string',
+        description: '한국어로 1~2문장: 모범 답안의 핵심 단어나 표현이 이 맥락에서 왜 자연스러운지 설명. 비슷한 단어와의 뉘앙스 차이도 언급',
+      },
+      alternatives: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '같은 의미의 자연스러운 대안 영어 표현 2개',
+      },
+    },
+    required: ['correct', 'feedback', 'hint', 'wordNotes', 'alternatives'],
+  },
+};
+
 app.post('/api/translate/check', async (req, res) => {
   const { ko, en, userAnswer } = req.body;
   if (!ko || !en || !userAnswer) return res.status(400).json({ error: '잘못된 요청입니다.' });
@@ -182,29 +214,19 @@ app.post('/api/translate/check', async (req, res) => {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: `You are an English writing evaluator for Korean learners. Evaluate the user's English translation and respond ONLY with valid JSON — no markdown, no extra text.`,
+      system: 'You are an English writing evaluator for Korean learners.',
+      tools: [TRANSLATE_TOOL],
+      tool_choice: { type: 'tool', name: 'evaluate_translation' },
       messages: [{
         role: 'user',
-        content: `Korean sentence: "${ko}"
-Model answer: "${en}"
-User's answer: "${userAnswer}"
-
-Evaluate whether the user's answer is correct or acceptable (same meaning, even if different wording).
-Respond with JSON exactly like this:
-{
-  "correct": true or false,
-  "feedback": "한국어로 짧게 (1~2문장): 정답이면 칭찬, 틀렸으면 어디가 틀렸는지 구체적으로",
-  "hint": "한국어로 (틀렸을 때만): 올바른 표현을 위한 핵심 힌트 1가지, 정답이면 빈 문자열",
-  "wordNotes": "한국어로 (1~2문장): 모범 답안의 핵심 단어나 표현이 이 맥락에서 왜 자연스러운지 설명. 비슷한 단어와의 뉘앙스 차이도 언급",
-  "alternatives": ["같은 의미의 자연스러운 대안 표현 1 (영어)", "같은 의미의 자연스러운 대안 표현 2 (영어)"]
-}`,
+        content: `Korean sentence: "${ko}"\nModel answer: "${en}"\nUser's answer: "${userAnswer}"`,
       }],
     });
 
-    let raw = response.content[0].text.trim();
-    raw = raw.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
-    const result = JSON.parse(raw);
-    res.json(result);
+    const toolUse = response.content.find(b => b.type === 'tool_use');
+    if (!toolUse) throw new Error('tool_use 블록 없음');
+
+    res.json(toolUse.input);
   } catch (err) {
     console.error('번역 채점 오류:', err.message);
     res.status(500).json({ error: 'AI 채점 중 오류가 발생했습니다.' });
